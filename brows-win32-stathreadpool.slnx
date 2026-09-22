@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/_/">
+    <File Path=".editorconfig" />
+    <File Path=".gitignore" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+    <File Path="LICENSE" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/_/source/">
+    <File Path="source/Directory.Build.props" />
+  </Folder>
+  <Folder Name="/_/tests/">
+    <File Path="tests/Directory.Build.props" />
+  </Folder>
+  <Project Path="source/Brows.Win32.STAThreadPool/Brows.Win32.STAThreadPool.csproj" />
+  <Project Path="tests/Brows.Win32.STAThreadPool.Tests/Brows.Win32.STAThreadPool.Tests.csproj" Id="407aceba-8747-44bd-b32d-a363fbf5d801" />
+</Solution>

@@ -1,0 +1,43 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <PropertyGroup>
+    <Authors>Ken Yourek</Authors>
+    <Copyright>Copyright © Ken Yourek 2026</Copyright>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <VersionSuffix></VersionSuffix>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/brows-app/brows-win32-stathreadpool.git</RepositoryUrl>
+    <RepositoryBranch>dev</RepositoryBranch>
+    <RepositoryCommit></RepositoryCommit>
+    <RootNamespace>Brows</RootNamespace>
+    <TargetFrameworks>net462;net10.0-windows</TargetFrameworks>
+    <Deterministic>true</Deterministic>
+    <LangVersion>14.0</LangVersion>
+    <ArtifactsPath>../../out</ArtifactsPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="ArgumentException = System.ArgumentException"/>
+    <Using Include="ArgumentNullException = System.ArgumentNullException"/>
+    <Using Include="ArgumentOutOfRangeException = System.ArgumentOutOfRangeException"/>
+    <Using Include="CancellationToken = System.Threading.CancellationToken"/>
+    <Using Include="ComVisibleAttribute = System.Runtime.InteropServices.ComVisibleAttribute"/>
+    <Using Include="CultureInfo = System.Globalization.CultureInfo"/>
+    <Using Include="DateTime = System.DateTime"/>
+    <Using Include="DateTimeOffset = System.DateTimeOffset"/>
+    <Using Include="EventArgs = System.EventArgs"/>
+    <Using Include="Exception = System.Exception"/>
+    <Using Include="FormatException = System.FormatException"/>
+    <Using Include="Guid = System.Guid"/>
+    <Using Include="IDisposable = System.IDisposable"/>
+    <Using Include="InternalsVisibleToAttribute = System.Runtime.CompilerServices.InternalsVisibleToAttribute"/>
+    <Using Include="InvalidOperationException = System.InvalidOperationException"/>
+    <Using Include="NotImplementedException = System.NotImplementedException"/>
+    <Using Include="NotSupportedException = System.NotSupportedException"/>
+    <Using Include="ObjectDisposedException = System.ObjectDisposedException"/>
+    <Using Include="StringComparer = System.StringComparer"/>
+    <Using Include="StringComparison = System.StringComparison"/>
+    <Using Include="Thread = System.Threading.Thread"/>
+    <Using Include="TimeSpan = System.TimeSpan"/>
+    <Using Include="Type = System.Type"/>
+  </ItemGroup>  
+</Project>
