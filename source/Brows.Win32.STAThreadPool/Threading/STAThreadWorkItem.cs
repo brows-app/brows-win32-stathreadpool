@@ -25,13 +25,14 @@ internal sealed class STAThreadWorkItem<TResult> {
         var result = default(TResult);
         if (Async) {
             var function = FunctionAsync;
-            if (function != null) {
-                result = await function(cancellationToken);
+            var functionTask = function?.Invoke(cancellationToken);
+            if (functionTask is not null) {
+                result = await functionTask;
             }
         }
         else {
             var function = Function;
-            if (function != null) {
+            if (function is not null) {
                 result = function();
             }
         }

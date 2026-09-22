@@ -53,13 +53,13 @@ public sealed class STAThreadPool {
                     var idleTime = worker.IdleTime;
                     if (idleTime.HasValue) {
                         if (idleTime.Value > IdleTime) {
-                            idle = idle ?? new List<STAThreadWorker>();
+                            idle ??= [];
                             idle.Add(worker);
                         }
                     }
                 }
             }
-            if (idle != null) {
+            if (idle is not null) {
                 foreach (var worker in idle) {
                     worker.Exit();
                     Workers.Remove(worker);
@@ -231,7 +231,7 @@ public sealed class STAThreadPool {
     /// <returns>A task that completes when <paramref name="work"/> has finished.</returns>
     public async Task Work(string name, Action work, CancellationToken cancellationToken) {
         await Work<object>(name, () => {
-            if (work != null) {
+            if (work is not null) {
                 work();
             }
             return default;
@@ -247,7 +247,7 @@ public sealed class STAThreadPool {
     /// <returns>A task that completes when <paramref name="work"/> has finished.</returns>
     public async Task Work(string name, Func<CancellationToken, Task> work, CancellationToken cancellationToken) {
         await Work<object>(name, async token => {
-            if (work != null) {
+            if (work is not null) {
                 await work(token);
             }
             return default;
@@ -262,8 +262,8 @@ public sealed class STAThreadPool {
             Log.Info(nameof(Empty));
         }
         lock (Workers) {
-            var workers = new List<STAThreadWorker>(Workers);
-            foreach (var worker in workers) {
+            var snapshot = new List<STAThreadWorker>(Workers);
+            foreach (var worker in snapshot) {
                 worker.Exit();
                 Workers.Remove(worker);
             }

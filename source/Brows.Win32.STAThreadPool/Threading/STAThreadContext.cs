@@ -62,8 +62,8 @@ internal sealed class STAThreadContext {
     }
 
     public async ValueTask<SynchronizationContext> Ready() {
-        if (Sync == null) {
-            if (SyncTask == null) {
+        if (Sync is null) {
+            if (SyncTask is null) {
                 SyncTask = Start();
             }
             Sync = await SyncTask;
