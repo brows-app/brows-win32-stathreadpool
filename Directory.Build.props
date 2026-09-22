@@ -12,7 +12,7 @@
     <VersionSuffix></VersionSuffix>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/brows-app/brows-win32-stathreadpool.git</RepositoryUrl>
-    <RepositoryBranch>dev</RepositoryBranch>
+    <RepositoryBranch></RepositoryBranch>
     <RepositoryCommit></RepositoryCommit>
     <RootNamespace>Brows</RootNamespace>
     <TargetFrameworks>net462;net48;net8.0-windows;net10.0-windows</TargetFrameworks>
