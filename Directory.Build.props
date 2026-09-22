@@ -3,6 +3,11 @@
   <PropertyGroup>
     <Authors>Ken Yourek</Authors>
     <Copyright>Copyright © Ken Yourek 2026</Copyright>
+    <Description>STA thread pool for .NET on Win32.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/brows-app/brows-win32-stathreadpool</PackageProjectUrl>
+    <PackageTags>sta;thread;threadpool;win32;com;apartment</PackageTags>
     <VersionPrefix>0.1.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <RepositoryType>git</RepositoryType>

@@ -1,4 +1,8 @@
 <Solution>
+  <Folder Name="/.github/" />
+  <Folder Name="/.github/workflows/">
+    <File Path=".github/workflows/workflow.yml" />
+  </Folder>
   <Folder Name="/_/">
     <File Path=".editorconfig" />
     <File Path=".gitignore" />
