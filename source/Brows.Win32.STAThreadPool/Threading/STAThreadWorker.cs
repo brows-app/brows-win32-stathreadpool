@@ -8,6 +8,7 @@ namespace Brows.Threading;
 internal sealed class STAThreadWorker {
     private static readonly ILog Log = Logging.For(typeof(STAThreadWorker));
 
+    private bool ExitRequested;
     private Stopwatch Stopwatch;
 
     private STAThreadContext Context => field ??=
@@ -25,11 +26,23 @@ internal sealed class STAThreadWorker {
         Pool = pool;
     }
 
+    // Exit, ExitPending and Working are only ever touched by the pool while it holds
+    // its worker lock, so a worker that is working defers its exit until the work is
+    // done. Exiting the message loop while work is pending would strand that work.
     public void Exit() {
         if (Log.Info()) {
             Log.Info(this + " " + nameof(Exit) + " [" + IdleTime + "]");
         }
-        Context.Exit();
+        ExitRequested = true;
+        if (Working == false) {
+            Context.Exit();
+        }
+    }
+
+    public void ExitPending() {
+        if (ExitRequested) {
+            Context.Exit();
+        }
     }
 
     public async Task<TResult> Work<TResult>(STAThreadWorkItem<TResult> item, CancellationToken cancellationToken) {

@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Concurrent;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -6,6 +8,24 @@ namespace Brows.Threading;
 
 [TestFixture]
 internal sealed class STAThreadPoolTest {
+    private static async Task Occupy(STAThreadPool pool, int count) {
+        var threads = new ConcurrentBag<Thread>();
+        using var release = new ManualResetEventSlim();
+        var work = Enumerable
+            .Range(0, count)
+            .Select(i => pool.Work("occupy-" + i, () => {
+                threads.Add(Thread.CurrentThread);
+                return release.Wait(TimeSpan.FromSeconds(10));
+            }, CancellationToken.None))
+            .ToArray();
+        while (threads.Count < count) {
+            await Task.Delay(10);
+        }
+        Assert.That(pool.WorkerCount, Is.EqualTo(count));
+        release.Set();
+        await Task.WhenAll(work);
+    }
+
     [TestCase(1)]
     [TestCase(100)]
     public void TryWorkDelay_accepts_positive_values(int value) {
@@ -77,6 +97,86 @@ internal sealed class STAThreadPoolTest {
             Assert.That(exception.ParamName, Is.EqualTo(nameof(STAThreadPool.WorkerCountMin)));
             Assert.That(pool.WorkerCountMin, Is.EqualTo(existingValue));
         });
+    }
+
+    [Test]
+    public async Task Empty_exits_a_worker_thread_whose_context_is_still_starting() {
+        var pool = new STAThreadPool("empty-starting");
+        var thread = default(Thread);
+
+        var work = pool.Work("starting", () => thread = Thread.CurrentThread, CancellationToken.None);
+        pool.Empty();
+
+        await work;
+        Assert.That(() => thread.IsAlive, Is.False.After(10000, 50));
+    }
+
+    [Test]
+    public async Task Empty_completes_work_that_is_already_running() {
+        var pool = new STAThreadPool("empty-running");
+        using var workStarted = new ManualResetEventSlim();
+        using var releaseWork = new ManualResetEventSlim();
+        var thread = default(Thread);
+
+        var work = pool.Work("running", () => {
+            thread = Thread.CurrentThread;
+            workStarted.Set();
+            return releaseWork.Wait(TimeSpan.FromSeconds(10));
+        }, CancellationToken.None);
+        Assert.That(workStarted.Wait(TimeSpan.FromSeconds(10)), Is.True);
+        pool.Empty();
+        releaseWork.Set();
+
+        Assert.That(await work, Is.True);
+        Assert.That(() => thread.IsAlive, Is.False.After(10000, 50));
+    }
+
+    [Test]
+    public async Task Idle_workers_are_not_removed_below_the_minimum_worker_count() {
+        var pool = new STAThreadPool("reap-minimum") {
+            WorkerCountMax = 4,
+            WorkerCountMin = 2,
+            IdleTime = TimeSpan.Zero,
+            TimerPeriod = TimeSpan.FromMilliseconds(50),
+        };
+        try {
+            await Occupy(pool, 4);
+
+            Assert.That(() => pool.WorkerCount, Is.EqualTo(2).After(10000, 50));
+            await Task.Delay(500);
+            Assert.That(pool.WorkerCount, Is.EqualTo(2));
+        }
+        finally {
+            pool.Empty();
+        }
+    }
+
+    [Test]
+    public async Task Idle_workers_are_removed_while_the_pool_keeps_working() {
+        var pool = new STAThreadPool("reap-busy") {
+            WorkerCountMax = 4,
+            WorkerCountMin = 1,
+            IdleTime = TimeSpan.Zero,
+            TimerPeriod = TimeSpan.FromMilliseconds(50),
+        };
+        using var stop = new CancellationTokenSource();
+        try {
+            await Occupy(pool, 4);
+            var keepWorking = Task.Run(async () => {
+                while (stop.IsCancellationRequested == false) {
+                    await pool.Work("tick", () => 0, CancellationToken.None);
+                    await Task.Delay(10, CancellationToken.None);
+                }
+            });
+
+            Assert.That(() => pool.WorkerCount, Is.EqualTo(1).After(10000, 50));
+
+            stop.Cancel();
+            await keepWorking;
+        }
+        finally {
+            pool.Empty();
+        }
     }
 
     [Test]

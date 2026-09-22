@@ -24,12 +24,22 @@ public sealed class STAThreadPool {
 
     private long WorkerID;
     private Timer Timer;
-    private TimeSpan TimerPeriod = TimeSpan.FromMinutes(1);
+
+    internal TimeSpan TimerPeriod { get; set; } = TimeSpan.FromMinutes(1);
+
+    internal int WorkerCount {
+        get {
+            lock (Workers) {
+                return Workers.Count;
+            }
+        }
+    }
 
     private void TimerStart() {
         lock (TimerLock) {
-            Timer?.Change(Timeout.Infinite, Timeout.Infinite);
-            Timer?.Dispose();
+            if (Timer is not null) {
+                return;
+            }
             Timer = new Timer(TimerCallback, null, TimerPeriod, Timeout.InfiniteTimeSpan);
         }
     }
@@ -44,17 +54,23 @@ public sealed class STAThreadPool {
             Timer = null;
         }
         lock (Workers) {
-            if (Workers.Count <= WorkerCountMin) {
+            var workerCountMin = WorkerCountMin;
+            if (Workers.Count <= workerCountMin) {
                 return;
             }
+            var removable = Workers.Count - workerCountMin;
             var idle = default(List<STAThreadWorker>);
             foreach (var worker in Workers) {
+                if (removable == 0) {
+                    break;
+                }
                 if (worker.Working == false) {
                     var idleTime = worker.IdleTime;
                     if (idleTime.HasValue) {
                         if (idleTime.Value > IdleTime) {
                             idle ??= [];
                             idle.Add(worker);
+                            removable--;
                         }
                     }
                 }
@@ -65,7 +81,7 @@ public sealed class STAThreadPool {
                     Workers.Remove(worker);
                 }
             }
-            if (Workers.Count > WorkerCountMin) {
+            if (Workers.Count > workerCountMin) {
                 TimerStart();
             }
         }
@@ -92,6 +108,7 @@ public sealed class STAThreadPool {
         finally {
             lock (Workers) {
                 worker.Working = false;
+                worker.ExitPending();
                 if (Workers.Count > WorkerCountMin) {
                     TimerStart();
                 }
@@ -255,7 +272,8 @@ public sealed class STAThreadPool {
     }
 
     /// <summary>
-    /// Removes all workers from the pool and requests that their STA message loops exit.
+    /// Removes all workers from the pool and requests that their STA message loops exit. A worker
+    /// that is running work when this is called exits once that work has completed.
     /// </summary>
     public void Empty() {
         if (Log.Info()) {
