@@ -10,7 +10,7 @@
     <RepositoryBranch>dev</RepositoryBranch>
     <RepositoryCommit></RepositoryCommit>
     <RootNamespace>Brows</RootNamespace>
-    <TargetFrameworks>net462;net10.0-windows</TargetFrameworks>
+    <TargetFrameworks>net462;net48;net8.0-windows;net10.0-windows</TargetFrameworks>
     <Deterministic>true</Deterministic>
     <LangVersion>14.0</LangVersion>
     <ArtifactsPath>../../out</ArtifactsPath>
@@ -39,5 +39,5 @@
     <Using Include="Thread = System.Threading.Thread"/>
     <Using Include="TimeSpan = System.TimeSpan"/>
     <Using Include="Type = System.Type"/>
-  </ItemGroup>  
+  </ItemGroup>
 </Project>

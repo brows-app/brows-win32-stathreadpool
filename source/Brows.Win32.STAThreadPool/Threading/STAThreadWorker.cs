@@ -10,10 +10,8 @@ internal sealed class STAThreadWorker {
 
     private Stopwatch Stopwatch;
 
-    private STAThreadContext Context =>
-        _Context ?? (
-        _Context = new STAThreadContext($"{nameof(STAThreadWorker)} {Pool}.{ID:00}"));
-    private STAThreadContext _Context;
+    private STAThreadContext Context => field ??=
+        new($"{nameof(STAThreadWorker)} {Pool}.{ID:00}");
 
     public TimeSpan? IdleTime =>
         Stopwatch?.Elapsed;

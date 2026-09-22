@@ -6,6 +6,111 @@ namespace Brows.Threading;
 
 [TestFixture]
 internal sealed class STAThreadPoolTest {
+    [TestCase(1)]
+    [TestCase(100)]
+    public void TryWorkDelay_accepts_positive_values(int value) {
+        var pool = new STAThreadPool("validation") {
+            TryWorkDelay = value,
+        };
+
+        Assert.That(pool.TryWorkDelay, Is.EqualTo(value));
+    }
+
+    [TestCase(0)]
+    [TestCase(-1)]
+    public void TryWorkDelay_rejects_non_positive_values_without_changing_the_existing_value(int value) {
+        var pool = new STAThreadPool("validation");
+        const int existingValue = 10;
+
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => pool.TryWorkDelay = value);
+
+        Assert.Multiple(() => {
+            Assert.That(exception.ParamName, Is.EqualTo(nameof(STAThreadPool.TryWorkDelay)));
+            Assert.That(pool.TryWorkDelay, Is.EqualTo(existingValue));
+        });
+    }
+
+    [TestCase(1)]
+    [TestCase(100)]
+    public void WorkerCountMax_accepts_positive_values(int value) {
+        var pool = new STAThreadPool("validation") {
+            WorkerCountMax = value,
+        };
+
+        Assert.That(pool.WorkerCountMax, Is.EqualTo(value));
+    }
+
+    [TestCase(0)]
+    [TestCase(-1)]
+    public void WorkerCountMax_rejects_non_positive_values_without_changing_the_existing_value(int value) {
+        var pool = new STAThreadPool("validation");
+        const int existingValue = 16;
+
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => pool.WorkerCountMax = value);
+
+        Assert.Multiple(() => {
+            Assert.That(exception.ParamName, Is.EqualTo(nameof(STAThreadPool.WorkerCountMax)));
+            Assert.That(pool.WorkerCountMax, Is.EqualTo(existingValue));
+        });
+    }
+
+    [TestCase(1)]
+    [TestCase(100)]
+    public void WorkerCountMin_accepts_positive_values(int value) {
+        var pool = new STAThreadPool("validation") {
+            WorkerCountMax = value,
+            WorkerCountMin = value,
+        };
+
+        Assert.That(pool.WorkerCountMin, Is.EqualTo(value));
+    }
+
+    [TestCase(0)]
+    [TestCase(-1)]
+    public void WorkerCountMin_rejects_non_positive_values_without_changing_the_existing_value(int value) {
+        var pool = new STAThreadPool("validation");
+        const int existingValue = 1;
+
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => pool.WorkerCountMin = value);
+
+        Assert.Multiple(() => {
+            Assert.That(exception.ParamName, Is.EqualTo(nameof(STAThreadPool.WorkerCountMin)));
+            Assert.That(pool.WorkerCountMin, Is.EqualTo(existingValue));
+        });
+    }
+
+    [Test]
+    public void WorkerCountMax_rejects_a_value_less_than_the_current_minimum_without_changing_either_value() {
+        var pool = new STAThreadPool("validation") {
+            WorkerCountMin = 2,
+        };
+        const int invalidValue = 1;
+
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => pool.WorkerCountMax = invalidValue);
+
+        Assert.Multiple(() => {
+            Assert.That(exception.ParamName, Is.EqualTo(nameof(STAThreadPool.WorkerCountMax)));
+            Assert.That(pool.WorkerCountMax, Is.EqualTo(16));
+            Assert.That(pool.WorkerCountMin, Is.EqualTo(2));
+        });
+    }
+
+    [Test]
+    public void WorkerCountMin_rejects_a_value_greater_than_the_current_maximum_without_changing_either_value() {
+        var pool = new STAThreadPool("validation") {
+            WorkerCountMax = 2,
+        };
+        const int invalidValue = 3;
+
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => pool.WorkerCountMin = invalidValue);
+
+        Assert.Multiple(() => {
+            Assert.That(exception.ParamName, Is.EqualTo(nameof(STAThreadPool.WorkerCountMin)));
+            Assert.That(pool.WorkerCountMax, Is.EqualTo(2));
+            Assert.That(pool.WorkerCountMin, Is.EqualTo(1));
+        });
+    }
+
     [Test]
     public async Task Work_runs_synchronous_work_on_an_sta_worker_and_returns_its_result() {
         var pool = new STAThreadPool("synchronous");
@@ -57,8 +162,10 @@ internal sealed class STAThreadPoolTest {
     public async Task Work_reuses_an_idle_worker() {
         var pool = new STAThreadPool("reuse");
         try {
-            var firstWorker = await pool.Work("first", () => Thread.CurrentThread.ManagedThreadId, CancellationToken.None);
-            var secondWorker = await pool.Work("second", () => Thread.CurrentThread.ManagedThreadId, CancellationToken.None);
+            var firstWorker = await pool.Work("first", () =>
+                Thread.CurrentThread.ManagedThreadId, CancellationToken.None);
+            var secondWorker = await pool.Work("second", () =>
+                Thread.CurrentThread.ManagedThreadId, CancellationToken.None);
 
             Assert.That(secondWorker, Is.EqualTo(firstWorker));
         }

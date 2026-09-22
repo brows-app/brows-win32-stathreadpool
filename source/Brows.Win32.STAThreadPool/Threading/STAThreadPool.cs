@@ -13,11 +13,18 @@ namespace Brows.Threading;
 public sealed class STAThreadPool {
     private static readonly ILog Log = Logging.For(typeof(STAThreadPool));
 
+    private readonly List<STAThreadWorker> Workers = [];
+    private readonly
+#if NET9_0_OR_GREATER
+        Lock
+#else
+        object
+#endif
+    TimerLock = new();
+
     private long WorkerID;
     private Timer Timer;
     private TimeSpan TimerPeriod = TimeSpan.FromMinutes(1);
-    private readonly object TimerLock = new();
-    private readonly List<STAThreadWorker> Workers = new();
 
     private void TimerStart() {
         lock (TimerLock) {
@@ -94,11 +101,14 @@ public sealed class STAThreadPool {
 
     private async Task<TResult> DoWork<TResult>(STAThreadWorkItem<TResult> item, CancellationToken cancellationToken) {
         for (; ; ) {
-            var tryWork = await TryWork(item, cancellationToken);
-            if (tryWork.worked) {
-                return tryWork.result;
+            var (worked, result) = await TryWork(item, cancellationToken);
+            if (worked) {
+                return result;
             }
-            await Task.Delay(TryWorkDelay, cancellationToken);
+            var tryWorkDelay = TryWorkDelay;
+            if (tryWorkDelay > 0) {
+                await Task.Delay(tryWorkDelay, cancellationToken);
+            }
         }
     }
 
@@ -112,19 +122,66 @@ public sealed class STAThreadPool {
     public TimeSpan IdleTime { get; set; } = TimeSpan.FromMinutes(2.5);
 
     /// <summary>
-    /// Gets or sets the delay, in milliseconds, before retrying when all workers are busy.
+    /// Gets or sets the delay, in milliseconds, before retrying when all workers are busy. The value must be 1 or greater.
     /// </summary>
-    public int TryWorkDelay { get; set; } = 10;
+    public int TryWorkDelay {
+        get;
+        set {
+            if (value < 1) {
+                throw new ArgumentOutOfRangeException(
+                    paramName: nameof(TryWorkDelay),
+                    actualValue: value,
+                    message: $"The value of '{nameof(TryWorkDelay)}' must be 1 or greater.");
+            }
+            field = value;
+        }
+    } = 10;
 
     /// <summary>
-    /// Gets or sets the maximum number of workers that can be created.
+    /// Gets or sets the maximum number of workers that can be created. The value must be 1 or greater and cannot be less than <see cref="WorkerCountMin"/>.
     /// </summary>
-    public int WorkerCountMax { get; set; } = 16;
+    public int WorkerCountMax {
+        get;
+        set {
+            if (value < 1) {
+                throw new ArgumentOutOfRangeException(
+                    paramName: nameof(WorkerCountMax),
+                    actualValue: value,
+                    message: $"The value of '{nameof(WorkerCountMax)}' must be 1 or greater.");
+            }
+            if (value < WorkerCountMin) {
+                throw new ArgumentOutOfRangeException(
+                    paramName: nameof(WorkerCountMax),
+                    actualValue: value,
+                    message: $"The value of '{nameof(WorkerCountMax)}' cannot be less than " +
+                             $"the value of '{nameof(WorkerCountMin)}'.");
+            }
+            field = value;
+        }
+    } = 16;
 
     /// <summary>
-    /// Gets or sets the minimum number of idle workers retained by the pool.
+    /// Gets or sets the minimum number of idle workers retained by the pool. The value must be 1 or greater and cannot exceed <see cref="WorkerCountMax"/>.
     /// </summary>
-    public int WorkerCountMin { get; set; } = 1;
+    public int WorkerCountMin {
+        get;
+        set {
+            if (value < 1) {
+                throw new ArgumentOutOfRangeException(
+                    paramName: nameof(WorkerCountMin),
+                    actualValue: value,
+                    message: $"The value of '{nameof(WorkerCountMin)}' must be 1 or greater.");
+            }
+            if (value > WorkerCountMax) {
+                throw new ArgumentOutOfRangeException(
+                    paramName: nameof(WorkerCountMin),
+                    actualValue: value,
+                    message: $"The value of '{nameof(WorkerCountMin)}' cannot be greater than " +
+                             $"the value of '{nameof(WorkerCountMax)}'.");
+            }
+            field = value;
+        }
+    } = 1;
 
     /// <summary>
     /// Gets the name used to identify this pool and its worker threads.
