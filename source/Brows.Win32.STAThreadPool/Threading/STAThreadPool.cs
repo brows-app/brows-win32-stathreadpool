@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 
 namespace Brows.Threading;
 
+/// <summary>
+/// Schedules synchronous and asynchronous work on a reusable pool of single-threaded apartment threads.
+/// </summary>
 public sealed class STAThreadPool {
     private static readonly ILog Log = Logging.For(typeof(STAThreadPool));
 
@@ -103,27 +106,72 @@ public sealed class STAThreadPool {
         return await DoWork(item, cancellationToken);
     }
 
+    /// <summary>
+    /// Gets or sets the length of time an inactive worker may be retained before it is removed.
+    /// </summary>
     public TimeSpan IdleTime { get; set; } = TimeSpan.FromMinutes(2.5);
+
+    /// <summary>
+    /// Gets or sets the delay, in milliseconds, before retrying when all workers are busy.
+    /// </summary>
     public int TryWorkDelay { get; set; } = 10;
+
+    /// <summary>
+    /// Gets or sets the maximum number of workers that can be created.
+    /// </summary>
     public int WorkerCountMax { get; set; } = 16;
+
+    /// <summary>
+    /// Gets or sets the minimum number of idle workers retained by the pool.
+    /// </summary>
     public int WorkerCountMin { get; set; } = 1;
 
+    /// <summary>
+    /// Gets the name used to identify this pool and its worker threads.
+    /// </summary>
     public string Name { get; }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="STAThreadPool"/> class.
+    /// </summary>
+    /// <param name="name">The name used to identify the pool and its worker threads.</param>
     public STAThreadPool(string name) {
         Name = name;
     }
 
+    /// <summary>
+    /// Runs synchronous work on an available STA worker.
+    /// </summary>
+    /// <typeparam name="TResult">The type returned by <paramref name="work"/>.</typeparam>
+    /// <param name="name">The name used to identify the work item.</param>
+    /// <param name="work">The synchronous work to run.</param>
+    /// <param name="cancellationToken">The token used to cancel the work.</param>
+    /// <returns>A task that completes with the result of <paramref name="work"/>.</returns>
     public Task<TResult> Work<TResult>(string name, Func<TResult> work, CancellationToken cancellationToken) {
         return Work(new STAThreadWorkItem<TResult>(name, work), cancellationToken);
     }
 
+    /// <summary>
+    /// Runs asynchronous work on an available STA worker.
+    /// </summary>
+    /// <typeparam name="TResult">The type returned by <paramref name="work"/>.</typeparam>
+    /// <param name="name">The name used to identify the work item.</param>
+    /// <param name="work">The asynchronous work to run.</param>
+    /// <param name="cancellationToken">The token used to cancel the work.</param>
+    /// <returns>A task that completes with the result of <paramref name="work"/>.</returns>
     public Task<TResult> Work<TResult>(string name,
                                        Func<CancellationToken, Task<TResult>> work,
                                        CancellationToken cancellationToken) {
         return Work(new STAThreadWorkItem<TResult>(name, work), cancellationToken);
     }
 
+    /// <summary>
+    /// Runs synchronous work on an available STA worker.
+    /// </summary>
+    /// <param name="name">The name used to identify the work item.</param>
+    /// <param name="work">The synchronous work to run.</param>
+    /// <param name="cancellationToken">The token used to cancel the work.</param>
+    /// <returns>A task that completes when <paramref name="work"/> has finished.</returns>
     public async Task Work(string name, Action work, CancellationToken cancellationToken) {
         await Work<object>(name, () => {
             if (work != null) {
@@ -133,6 +181,13 @@ public sealed class STAThreadPool {
         }, cancellationToken);
     }
 
+    /// <summary>
+    /// Runs asynchronous work on an available STA worker.
+    /// </summary>
+    /// <param name="name">The name used to identify the work item.</param>
+    /// <param name="work">The asynchronous work to run.</param>
+    /// <param name="cancellationToken">The token used to cancel the work.</param>
+    /// <returns>A task that completes when <paramref name="work"/> has finished.</returns>
     public async Task Work(string name, Func<CancellationToken, Task> work, CancellationToken cancellationToken) {
         await Work<object>(name, async token => {
             if (work != null) {
@@ -142,6 +197,9 @@ public sealed class STAThreadPool {
         }, cancellationToken);
     }
 
+    /// <summary>
+    /// Removes all workers from the pool and requests that their STA message loops exit.
+    /// </summary>
     public void Empty() {
         if (Log.Info()) {
             Log.Info(nameof(Empty));
