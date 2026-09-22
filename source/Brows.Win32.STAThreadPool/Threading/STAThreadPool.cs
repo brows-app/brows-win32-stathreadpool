@@ -55,11 +55,12 @@ public sealed class STAThreadPool {
         }
         lock (Workers) {
             var workerCountMin = WorkerCountMin;
-            if (Workers.Count <= workerCountMin) {
+            var workerCount = Workers.Count;
+            if (workerCount <= workerCountMin) {
                 return;
             }
-            var removable = Workers.Count - workerCountMin;
             var idle = default(List<STAThreadWorker>);
+            var removable = workerCount - workerCountMin;
             foreach (var worker in Workers) {
                 if (removable == 0) {
                     break;
@@ -92,11 +93,11 @@ public sealed class STAThreadPool {
         var worker = default(STAThreadWorker);
         lock (Workers) {
             var idle = Workers.FirstOrDefault(w => w.Working == false);
-            if (idle == null && WorkerCountMax > Workers.Count) {
+            if (idle is null && WorkerCountMax > Workers.Count) {
                 idle = new STAThreadWorker(Name, ++WorkerID);
                 Workers.Add(idle);
             }
-            if (idle == null) {
+            if (idle is null) {
                 return (worked: false, result: default);
             }
             worker = idle;

@@ -34,7 +34,7 @@ internal sealed class STAThreadWorker {
             Log.Info(this + " " + nameof(Exit) + " [" + IdleTime + "]");
         }
         ExitRequested = true;
-        if (Working == false) {
+        if (Working != true) {
             Context.Exit();
         }
     }

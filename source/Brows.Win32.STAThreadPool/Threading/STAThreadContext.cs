@@ -9,9 +9,6 @@ namespace Brows.Threading;
 internal sealed class STAThreadContext {
     private static readonly ILog Log = Logging.For(typeof(STAThreadContext));
 
-    private bool Exited;
-    private SynchronizationContext Sync;
-    private Task<SynchronizationContext> SyncTask;
     private readonly
 #if NET9_0_OR_GREATER
         Lock
@@ -20,7 +17,11 @@ internal sealed class STAThreadContext {
 #endif
     Locker = new();
 
-    private void ExitPost(SynchronizationContext sync) {
+    private bool Exited;
+    private SynchronizationContext Sync;
+    private Task<SynchronizationContext> SyncTask;
+
+    private void ExitThread(SynchronizationContext sync) {
         if (sync is null) {
             return;
         }
@@ -83,7 +84,7 @@ internal sealed class STAThreadContext {
             exited = Exited;
         }
         if (exited) {
-            ExitPost(sync);
+            ExitThread(sync);
         }
         return sync;
     }
@@ -114,7 +115,7 @@ internal sealed class STAThreadContext {
             Exited = true;
             sync = Sync;
         }
-        ExitPost(sync);
+        ExitThread(sync);
     }
 
     public sealed override string ToString() {
