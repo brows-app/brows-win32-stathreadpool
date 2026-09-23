@@ -179,16 +179,16 @@ public sealed class STAThreadPool {
     } = 16;
 
     /// <summary>
-    /// Gets or sets the minimum number of idle workers retained by the pool. The value must be 1 or greater and cannot exceed <see cref="WorkerCountMax"/>.
+    /// Gets or sets the minimum number of idle workers retained by the pool. The value must be 0 or greater and cannot exceed <see cref="WorkerCountMax"/>.
     /// </summary>
     public int WorkerCountMin {
         get;
         set {
-            if (value < 1) {
+            if (value < 0) {
                 throw new ArgumentOutOfRangeException(
                     paramName: nameof(WorkerCountMin),
                     actualValue: value,
-                    message: $"The value of '{nameof(WorkerCountMin)}' must be 1 or greater.");
+                    message: $"The value of '{nameof(WorkerCountMin)}' must be 0 or greater.");
             }
             if (value > WorkerCountMax) {
                 throw new ArgumentOutOfRangeException(
