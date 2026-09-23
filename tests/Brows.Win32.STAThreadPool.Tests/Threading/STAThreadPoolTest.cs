@@ -85,9 +85,18 @@ internal sealed class STAThreadPoolTest {
         Assert.That(pool.WorkerCountMin, Is.EqualTo(value));
     }
 
-    [TestCase(0)]
+    [Test]
+    public void WorkerCountMin_accepts_zero() {
+        var pool = new STAThreadPool("validation") {
+            WorkerCountMin = 0,
+        };
+
+        Assert.That(pool.WorkerCountMin, Is.EqualTo(0));
+    }
+
     [TestCase(-1)]
-    public void WorkerCountMin_rejects_non_positive_values_without_changing_the_existing_value(int value) {
+    [TestCase(-100)]
+    public void WorkerCountMin_rejects_negative_values_without_changing_the_existing_value(int value) {
         var pool = new STAThreadPool("validation");
         const int existingValue = 1;
 
