@@ -28,5 +28,5 @@ public interface ISTAThreadPoolFactory : IExport {
     /// <paramref name="options"/>. Each call creates a separate pool; the implementor's lifetime is
     /// managed by the composition framework, but the pools it creates are not retained by it.
     /// </returns>
-    ISTAThreadPool Create(string name, STAThreadPoolOptions options);
+    ISTAThreadPool CreateThreadPool(string name, STAThreadPoolOptions options = null);
 }

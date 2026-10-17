@@ -43,7 +43,7 @@ dotnet add package Brows.Win32.STAThreadPool.Composition
 ```
 
 The composition package contains `ISTAThreadPoolFactory`, a factory contract extending
-`Brows.Composition.IExport` whose `Create` method returns an `ISTAThreadPool`. Like the contracts,
+`Brows.Composition.IExport` whose `CreateThreadPool` method returns an `ISTAThreadPool`. Like the contracts,
 it is platform-neutral and has no Windows-specific runtime dependency. It is used together with the
 exports package, which provides the concrete factory the composition framework discovers:
 
@@ -153,7 +153,7 @@ Rather than referencing the Windows implementation directly, a program can creat
 an `ISTAThreadPoolFactory` obtained from the composition framework, using the
 `Brows.Win32.STAThreadPool.Composition` package for the factory contract and the
 `Brows.Win32.STAThreadPool.Composition.Exports` package for its implementation. Creating a pool
-does not start any threads; workers are created on demand, and each call to `Create` creates a
+does not start any threads; workers are created on demand, and each call to `CreateThreadPool` creates a
 separate pool. The pool returned by the factory is used exactly as shown above.
 
 ```csharp
@@ -161,7 +161,7 @@ using Brows.Threading;
 
 ISTAThreadPoolFactory factory = /* obtained from the composition framework */;
 
-ISTAThreadPool pool = factory.Create("shell", new STAThreadPoolOptions {
+ISTAThreadPool pool = factory.CreateThreadPool("shell", new STAThreadPoolOptions {
     WorkerCountMax = 4,
 });
 ```

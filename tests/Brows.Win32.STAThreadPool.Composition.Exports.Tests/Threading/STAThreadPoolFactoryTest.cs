@@ -20,7 +20,7 @@ internal sealed class STAThreadPoolFactoryTest {
     }
 
     [Test]
-    public void Create_returns_a_pool_with_the_given_name_and_option_values() {
+    public void CreateThreadPool_returns_a_pool_with_the_given_name_and_option_values() {
         ISTAThreadPoolFactory factory = new STAThreadPoolFactory();
         var options = new STAThreadPoolOptions {
             IdleTime = TimeSpan.FromMinutes(5),
@@ -29,7 +29,7 @@ internal sealed class STAThreadPoolFactoryTest {
             WorkerCountMin = 2,
         };
 
-        var pool = factory.Create("factory-options", options);
+        var pool = factory.CreateThreadPool("factory-options", options);
 
         using (Assert.EnterMultipleScope()) {
             Assert.That(pool, Is.InstanceOf<STAThreadPool>());
@@ -42,10 +42,10 @@ internal sealed class STAThreadPoolFactoryTest {
     }
 
     [Test]
-    public void Create_applies_defaults_when_the_options_are_null() {
+    public void CreateThreadPool_applies_defaults_when_the_options_are_null() {
         ISTAThreadPoolFactory factory = new STAThreadPoolFactory();
 
-        var pool = factory.Create("factory-defaults", null);
+        var pool = factory.CreateThreadPool("factory-defaults", null);
 
         using (Assert.EnterMultipleScope()) {
             Assert.That(pool.Name, Is.EqualTo("factory-defaults"));
@@ -57,11 +57,27 @@ internal sealed class STAThreadPoolFactoryTest {
     }
 
     [Test]
-    public void Create_returns_a_distinct_pool_for_each_call_while_reusing_the_factory() {
+    public void CreateThreadPool_applies_defaults_when_the_options_are_omitted() {
         ISTAThreadPoolFactory factory = new STAThreadPoolFactory();
 
-        var first = factory.Create("factory-distinct", null);
-        var second = factory.Create("factory-distinct", null);
+        var pool = factory.CreateThreadPool("factory-omitted-options");
+
+        using (Assert.EnterMultipleScope()) {
+            Assert.That(pool, Is.InstanceOf<STAThreadPool>());
+            Assert.That(pool.Name, Is.EqualTo("factory-omitted-options"));
+            Assert.That(pool.IdleTime, Is.EqualTo(TimeSpan.FromMinutes(2.5)));
+            Assert.That(pool.TryWorkDelay, Is.EqualTo(10));
+            Assert.That(pool.WorkerCountMax, Is.EqualTo(Environment.ProcessorCount));
+            Assert.That(pool.WorkerCountMin, Is.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public void CreateThreadPool_returns_a_distinct_pool_for_each_call_while_reusing_the_factory() {
+        ISTAThreadPoolFactory factory = new STAThreadPoolFactory();
+
+        var first = factory.CreateThreadPool("factory-distinct", null);
+        var second = factory.CreateThreadPool("factory-distinct", null);
 
         Assert.That(second, Is.Not.SameAs(first));
 
@@ -70,9 +86,9 @@ internal sealed class STAThreadPoolFactoryTest {
     }
 
     [Test]
-    public async Task Create_returns_a_pool_that_runs_work_on_an_sta_worker() {
+    public async Task CreateThreadPool_returns_a_pool_that_runs_work_on_an_sta_worker() {
         ISTAThreadPoolFactory factory = new STAThreadPoolFactory();
-        var pool = factory.Create("factory-sta", null);
+        var pool = factory.CreateThreadPool("factory-sta", null);
         try {
             var result = await pool.Work("check", () => new {
                 ApartmentState = Thread.CurrentThread.GetApartmentState(),
