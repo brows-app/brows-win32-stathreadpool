@@ -1,0 +1,7 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\source\Brows.Win32.STAThreadPool.Contracts\Brows.Win32.STAThreadPool.Contracts.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,19 +1,37 @@
 # brows-win32-stathreadpool
 
-STA thread pool for .NET on Win32.
+Windows STA thread pool implementation for .NET, with a separate platform-neutral contracts package.
 
 Some Windows APIs — shell namespace extensions, many COM servers, drag-and-drop, and the clipboard
 among them — must be called from a thread in a single-threaded apartment that pumps messages. The
-.NET thread pool is MTA, so this library provides a small pool of reusable STA worker threads and an
-`async`-friendly way to run work on them.
+.NET thread pool is MTA, so `Brows.Win32.STAThreadPool` provides a small pool of reusable STA worker
+threads and an `async`-friendly way to run work on them.
 
 ## Installation
+
+Install the Windows implementation when you need to create and run a pool:
 
 ```
 dotnet add package Brows.Win32.STAThreadPool
 ```
 
-Target frameworks: `net462`, `net48`, `net8.0-windows`, `net10.0-windows`. On .NET 8 and later the
+The implementation package depends on the contracts package, so its API types are available
+transitively.
+
+Install only the contracts when you need to reference or implement the shared API without the
+Windows implementation:
+
+```
+dotnet add package Brows.Win32.STAThreadPool.Contracts
+```
+
+The contracts package contains `ISTAThreadPool` and `STAThreadPoolOptions`. It has no Windows-specific
+runtime dependency. On .NET 8 and later, contract-only projects can target platform-neutral TFMs such
+as `net8.0` or `net10.0` and run without Windows. The `.NET Framework` targets, `net462` and `net48`,
+are Windows-only.
+
+The implementation package targets `net462`, `net48`, `net8.0-windows`, and `net10.0-windows`. It
+requires Windows because its STA workers use a Windows Forms message loop. On .NET 8 and later the
 consuming project must target a Windows TFM, such as `net10.0-windows`; the Windows Desktop
 framework reference the STA message loop needs flows in from this package.
 
@@ -22,10 +40,17 @@ framework reference the STA message loop needs flows in from this package.
 Create one pool and keep it for the lifetime of the component that needs STA access. Creating a pool
 does not start any threads; workers are created on demand.
 
+Use `ISTAThreadPool` to schedule work and empty the pool. `STAThreadPool` implements `Work` and
+`Empty` explicitly, so these methods are not callable through a `STAThreadPool` reference without
+casting it to `ISTAThreadPool`. The interface exposes configuration values as read-only properties;
+the concrete pool exposes its configurable values with public setters and through its `Options`
+property. Shared operation documentation is defined on `ISTAThreadPool` and inherited by
+`STAThreadPool`.
+
 ```csharp
 using Brows.Threading;
 
-var pool = new STAThreadPool("shell");
+ISTAThreadPool pool = new STAThreadPool("shell");
 
 // Synchronous work.
 var name = await pool.Work("get-name", () => {
@@ -56,13 +81,13 @@ as an `OperationCanceledException`.
 | Property | Default | Description |
 | --- | --- | --- |
 | `Name` | *(constructor)* | Identifies the pool and names its worker threads. |
-| `WorkerCountMin` | `1` | Minimum number of workers retained by the pool. Must be 1 or greater and cannot exceed `WorkerCountMax`. |
-| `WorkerCountMax` | `16` | Maximum number of workers the pool may create. Must be 1 or greater and cannot be less than `WorkerCountMin`. |
+| `WorkerCountMin` | `1` | Minimum number of idle workers retained by the pool. Must be 0 or greater and cannot exceed `WorkerCountMax`. |
+| `WorkerCountMax` | `Environment.ProcessorCount` | Maximum number of workers the pool may create. Must be 1 or greater and cannot be less than `WorkerCountMin`. |
 | `IdleTime` | `2.5` minutes | How long an inactive worker may be retained before it is removed. |
 | `TryWorkDelay` | `10` | Delay in milliseconds before retrying when every worker is busy. Must be 1 or greater. |
 
 ```csharp
-var pool = new STAThreadPool("shell") {
+ISTAThreadPool pool = new STAThreadPool("shell") {
     WorkerCountMax = 4,
     WorkerCountMin = 1,
     IdleTime = TimeSpan.FromMinutes(1),
@@ -72,6 +97,21 @@ var pool = new STAThreadPool("shell") {
 Values outside the documented ranges throw `ArgumentOutOfRangeException` and leave the property
 unchanged. When `WorkerCountMin` and `WorkerCountMax` are both being raised, set `WorkerCountMax`
 first; when both are being lowered, set `WorkerCountMin` first.
+
+The pool's worker retention and scheduling settings live in a `STAThreadPoolOptions` record,
+exposed by the pool through its `Options` property. The constructor optionally accepts a
+`STAThreadPoolOptions` and stores a copy of it, so later changes to the instance passed in are
+not observed by the pool. Setting a property on the pool and setting the corresponding property
+of `pool.Options` are equivalent; both update the configuration the running pool applies. A
+custom record can be built with an object initializer or with a `with` expression:
+
+```csharp
+var options = new STAThreadPoolOptions {
+    WorkerCountMax = 4,
+};
+
+ISTAThreadPool pool = new STAThreadPool("shell", options);
+```
 
 ### Shutting down
 

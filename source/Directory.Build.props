@@ -8,6 +8,11 @@
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/brows-app/brows-win32-stathreadpool</PackageProjectUrl>
+    <PackageTags>sta;thread;threadpool;win32;com;apartment</PackageTags>
+    <ArtifactsPath>../../out/source</ArtifactsPath>
   </PropertyGroup>
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)../README.md" Pack="true" PackagePath="\" Visible="false" />

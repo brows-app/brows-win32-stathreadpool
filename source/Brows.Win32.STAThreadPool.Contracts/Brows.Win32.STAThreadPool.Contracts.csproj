@@ -1,0 +1,6 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Contracts for a reusable single-threaded apartment thread pool. The contracts are platform-neutral; the Windows implementation is in Brows.Win32.STAThreadPool.</Description>
+    <PackageTags>sta;thread;threadpool;apartment</PackageTags>
+  </PropertyGroup>
+</Project>

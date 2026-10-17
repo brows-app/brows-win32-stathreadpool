@@ -8,9 +8,14 @@ using System.Threading.Tasks;
 namespace Brows.Threading;
 
 /// <summary>
-/// Schedules synchronous and asynchronous work on a reusable pool of single-threaded apartment threads.
+/// Provides a Windows implementation of a reusable single-threaded apartment thread pool.
 /// </summary>
-public sealed class STAThreadPool {
+/// <remarks>
+/// Worker threads use a Windows Forms message loop, so this implementation requires Windows. On .NET 8
+/// and later, consuming projects must target a Windows TFM, such as <c>net8.0-windows</c>. The platform-neutral
+/// contract types are available separately in the <c>Brows.Win32.STAThreadPool.Contracts</c> package.
+/// </remarks>
+public sealed class STAThreadPool : ISTAThreadPool {
     private static readonly ILog Log = Logging.For(typeof(STAThreadPool));
 
     private readonly List<STAThreadWorker> Workers = [];
@@ -90,6 +95,14 @@ public sealed class STAThreadPool {
 
     private async Task<(bool worked, TResult result)> TryWork<TResult>(STAThreadWorkItem<TResult> item,
                                                                        CancellationToken cancellationToken) {
+        /*
+         * Return without selecting or creating a worker when the token is already canceled, so a
+         * canceled Work call does not leave behind a worker that was never used. DoWork surfaces
+         * the cancellation through the delayed retry below.
+         */
+        if (cancellationToken.IsCancellationRequested) {
+            return (worked: false, result: default);
+        }
         var worker = default(STAThreadWorker);
         lock (Workers) {
             var idle = Workers.FirstOrDefault(w => w.Working == false);
@@ -117,7 +130,8 @@ public sealed class STAThreadPool {
         }
     }
 
-    private async Task<TResult> DoWork<TResult>(STAThreadWorkItem<TResult> item, CancellationToken cancellationToken) {
+    private async Task<TResult> DoWork<TResult>(STAThreadWorkItem<TResult> item,
+                                                CancellationToken cancellationToken) {
         for (; ; ) {
             var (worked, result) = await TryWork(item, cancellationToken);
             if (worked) {
@@ -130,125 +144,91 @@ public sealed class STAThreadPool {
         }
     }
 
-    private async Task<TResult> Work<TResult>(STAThreadWorkItem<TResult> item, CancellationToken cancellationToken) {
+    private async Task<TResult> Work<TResult>(STAThreadWorkItem<TResult> item,
+                                              CancellationToken cancellationToken) {
         return await DoWork(item, cancellationToken);
     }
 
     /// <summary>
     /// Gets or sets the length of time an inactive worker may be retained before it is removed.
+    /// The default is 2.5 minutes.
     /// </summary>
-    public TimeSpan IdleTime { get; set; } = TimeSpan.FromMinutes(2.5);
+    public TimeSpan IdleTime {
+        get => Options.IdleTime;
+        set => Options.IdleTime = value;
+    }
 
     /// <summary>
-    /// Gets or sets the delay, in milliseconds, before retrying when all workers are busy. The value must be 1 or greater.
+    /// Gets or sets the delay, in milliseconds, before retrying when all workers are busy.
+    /// The value must be 1 or greater. The default is 10 milliseconds.
     /// </summary>
     public int TryWorkDelay {
-        get;
-        set {
-            if (value < 1) {
-                throw new ArgumentOutOfRangeException(
-                    paramName: nameof(TryWorkDelay),
-                    actualValue: value,
-                    message: $"The value of '{nameof(TryWorkDelay)}' must be 1 or greater.");
-            }
-            field = value;
-        }
-    } = 10;
+        get => Options.TryWorkDelay;
+        set => Options.TryWorkDelay = value;
+    }
 
     /// <summary>
-    /// Gets or sets the maximum number of workers that can be created. The value must be 1 or greater and cannot be less than <see cref="WorkerCountMin"/>.
+    /// Gets or sets the maximum number of workers that can be created. The value must be 1 or greater
+    /// and cannot be less than <see cref="WorkerCountMin"/>. The default is
+    /// <see cref="Environment.ProcessorCount"/>.
     /// </summary>
     public int WorkerCountMax {
-        get;
-        set {
-            if (value < 1) {
-                throw new ArgumentOutOfRangeException(
-                    paramName: nameof(WorkerCountMax),
-                    actualValue: value,
-                    message: $"The value of '{nameof(WorkerCountMax)}' must be 1 or greater.");
-            }
-            if (value < WorkerCountMin) {
-                throw new ArgumentOutOfRangeException(
-                    paramName: nameof(WorkerCountMax),
-                    actualValue: value,
-                    message: $"The value of '{nameof(WorkerCountMax)}' cannot be less than " +
-                             $"the value of '{nameof(WorkerCountMin)}'.");
-            }
-            field = value;
-        }
-    } = 16;
+        get => Options.WorkerCountMax;
+        set => Options.WorkerCountMax = value;
+    }
 
     /// <summary>
-    /// Gets or sets the minimum number of idle workers retained by the pool. The value must be 0 or greater and cannot exceed <see cref="WorkerCountMax"/>.
+    /// Gets or sets the minimum number of idle workers retained by the pool. The value must be 0 or greater
+    /// and cannot exceed <see cref="WorkerCountMax"/>. The default is 1.
     /// </summary>
     public int WorkerCountMin {
-        get;
-        set {
-            if (value < 0) {
-                throw new ArgumentOutOfRangeException(
-                    paramName: nameof(WorkerCountMin),
-                    actualValue: value,
-                    message: $"The value of '{nameof(WorkerCountMin)}' must be 0 or greater.");
-            }
-            if (value > WorkerCountMax) {
-                throw new ArgumentOutOfRangeException(
-                    paramName: nameof(WorkerCountMin),
-                    actualValue: value,
-                    message: $"The value of '{nameof(WorkerCountMin)}' cannot be greater than " +
-                             $"the value of '{nameof(WorkerCountMax)}'.");
-            }
-            field = value;
-        }
-    } = 1;
+        get => Options.WorkerCountMin;
+        set => Options.WorkerCountMin = value;
+    }
+
+    /// <inheritdoc/>
+    public string Name { get; }
 
     /// <summary>
-    /// Gets the name used to identify this pool and its worker threads.
+    /// Gets the worker retention and scheduling options used by this pool.
     /// </summary>
-    public string Name { get; }
+    /// <remarks>
+    /// This instance is a copy of the options supplied to the constructor, or a new instance with default values.
+    /// Changes to its properties update this pool's configuration.
+    /// </remarks>
+    public STAThreadPoolOptions Options { get; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="STAThreadPool"/> class.
     /// </summary>
-    /// <param name="name">The name used to identify the pool and its worker threads.</param>
-    public STAThreadPool(string name) {
+    /// <param name="name">
+    /// The name used to identify the pool and its worker threads.
+    /// </param>
+    /// <param name="options">
+    /// The worker retention and scheduling options to copy for this pool, or <see langword="null"/> to use defaults.
+    /// </param>
+    public STAThreadPool(string name, STAThreadPoolOptions options = null) {
         Name = name;
+        Options = (options ?? new()) with { };
     }
 
-    /// <summary>
-    /// Runs synchronous work on an available STA worker.
-    /// </summary>
-    /// <typeparam name="TResult">The type returned by <paramref name="work"/>.</typeparam>
-    /// <param name="name">The name used to identify the work item.</param>
-    /// <param name="work">The synchronous work to run.</param>
-    /// <param name="cancellationToken">The token used to cancel the work.</param>
-    /// <returns>A task that completes with the result of <paramref name="work"/>.</returns>
-    public Task<TResult> Work<TResult>(string name, Func<TResult> work, CancellationToken cancellationToken) {
+    /// <inheritdoc/>
+    Task<TResult> ISTAThreadPool.Work<TResult>(string name,
+                                               Func<TResult> work,
+                                               CancellationToken cancellationToken) {
         return Work(new STAThreadWorkItem<TResult>(name, work), cancellationToken);
     }
 
-    /// <summary>
-    /// Runs asynchronous work on an available STA worker.
-    /// </summary>
-    /// <typeparam name="TResult">The type returned by <paramref name="work"/>.</typeparam>
-    /// <param name="name">The name used to identify the work item.</param>
-    /// <param name="work">The asynchronous work to run.</param>
-    /// <param name="cancellationToken">The token used to cancel the work.</param>
-    /// <returns>A task that completes with the result of <paramref name="work"/>.</returns>
-    public Task<TResult> Work<TResult>(string name,
-                                       Func<CancellationToken, Task<TResult>> work,
-                                       CancellationToken cancellationToken) {
+    /// <inheritdoc/>
+    Task<TResult> ISTAThreadPool.Work<TResult>(string name,
+                                             Func<CancellationToken, Task<TResult>> work,
+                                             CancellationToken cancellationToken) {
         return Work(new STAThreadWorkItem<TResult>(name, work), cancellationToken);
     }
 
-    /// <summary>
-    /// Runs synchronous work on an available STA worker.
-    /// </summary>
-    /// <param name="name">The name used to identify the work item.</param>
-    /// <param name="work">The synchronous work to run.</param>
-    /// <param name="cancellationToken">The token used to cancel the work.</param>
-    /// <returns>A task that completes when <paramref name="work"/> has finished.</returns>
-    public async Task Work(string name, Action work, CancellationToken cancellationToken) {
-        await Work<object>(name, () => {
+    /// <inheritdoc/>
+    async Task ISTAThreadPool.Work(string name, Action work, CancellationToken cancellationToken) {
+        await ((ISTAThreadPool)this).Work<object>(name, () => {
             if (work is not null) {
                 work();
             }
@@ -256,15 +236,11 @@ public sealed class STAThreadPool {
         }, cancellationToken);
     }
 
-    /// <summary>
-    /// Runs asynchronous work on an available STA worker.
-    /// </summary>
-    /// <param name="name">The name used to identify the work item.</param>
-    /// <param name="work">The asynchronous work to run.</param>
-    /// <param name="cancellationToken">The token used to cancel the work.</param>
-    /// <returns>A task that completes when <paramref name="work"/> has finished.</returns>
-    public async Task Work(string name, Func<CancellationToken, Task> work, CancellationToken cancellationToken) {
-        await Work<object>(name, async token => {
+    /// <inheritdoc/>
+    async Task ISTAThreadPool.Work(string name,
+                                   Func<CancellationToken, Task> work,
+                                   CancellationToken cancellationToken) {
+        await ((ISTAThreadPool)this).Work<object>(name, async token => {
             if (work is not null) {
                 await work(token);
             }
@@ -272,13 +248,10 @@ public sealed class STAThreadPool {
         }, cancellationToken);
     }
 
-    /// <summary>
-    /// Removes all workers from the pool and requests that their STA message loops exit. A worker
-    /// that is running work when this is called exits once that work has completed.
-    /// </summary>
-    public void Empty() {
+    /// <inheritdoc/>
+    void ISTAThreadPool.Empty() {
         if (Log.Info()) {
-            Log.Info(nameof(Empty));
+            Log.Info(nameof(ISTAThreadPool.Empty));
         }
         lock (Workers) {
             var snapshot = new List<STAThreadWorker>(Workers);

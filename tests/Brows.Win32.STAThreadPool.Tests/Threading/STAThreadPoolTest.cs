@@ -13,7 +13,7 @@ internal sealed class STAThreadPoolTest {
         using var release = new ManualResetEventSlim();
         var work = Enumerable
             .Range(0, count)
-            .Select(i => pool.Work("occupy-" + i, () => {
+            .Select(i => ((ISTAThreadPool)pool).Work("occupy-" + i, () => {
                 threads.Add(Thread.CurrentThread);
                 return release.Wait(TimeSpan.FromSeconds(10));
             }, CancellationToken.None))
@@ -24,6 +24,74 @@ internal sealed class STAThreadPoolTest {
         Assert.That(pool.WorkerCount, Is.EqualTo(count));
         release.Set();
         await Task.WhenAll(work);
+    }
+
+    [Test]
+    public void Constructor_copies_options_into_a_distinct_instance() {
+        var options = new STAThreadPoolOptions {
+            IdleTime = TimeSpan.FromMinutes(5),
+            TryWorkDelay = 25,
+            WorkerCountMax = 4,
+            WorkerCountMin = 2,
+        };
+
+        var pool = new STAThreadPool("options-copy", options);
+
+        using (Assert.EnterMultipleScope()) {
+            Assert.That(pool.Options, Is.EqualTo(options));
+            Assert.That(pool.Options, Is.Not.SameAs(options));
+        }
+    }
+
+    [Test]
+    public void IdleTime_getter_reads_the_current_options_value() {
+        var pool = new STAThreadPool("options");
+        pool.Options.IdleTime = TimeSpan.FromMinutes(5);
+
+        Assert.That(pool.IdleTime, Is.EqualTo(TimeSpan.FromMinutes(5)));
+    }
+
+    [Test]
+    public void IdleTime_setter_updates_the_options_value() {
+        var pool = new STAThreadPool("options");
+
+        pool.IdleTime = TimeSpan.FromMinutes(5);
+
+        Assert.That(pool.Options.IdleTime, Is.EqualTo(TimeSpan.FromMinutes(5)));
+    }
+
+    [Test]
+    public void TryWorkDelay_getter_reads_the_current_options_value() {
+        var pool = new STAThreadPool("options");
+        pool.Options.TryWorkDelay = 25;
+
+        Assert.That(pool.TryWorkDelay, Is.EqualTo(25));
+    }
+
+    [Test]
+    public void TryWorkDelay_setter_updates_the_options_value() {
+        var pool = new STAThreadPool("options");
+
+        pool.TryWorkDelay = 25;
+
+        Assert.That(pool.Options.TryWorkDelay, Is.EqualTo(25));
+    }
+
+    [Test]
+    public void WorkerCountMax_getter_reads_the_current_options_value() {
+        var pool = new STAThreadPool("options");
+        pool.Options.WorkerCountMax = 4;
+
+        Assert.That(pool.WorkerCountMax, Is.EqualTo(4));
+    }
+
+    [Test]
+    public void WorkerCountMax_setter_updates_the_options_value() {
+        var pool = new STAThreadPool("options");
+
+        pool.WorkerCountMax = 4;
+
+        Assert.That(pool.Options.WorkerCountMax, Is.EqualTo(4));
     }
 
     [TestCase(1)]
@@ -44,10 +112,10 @@ internal sealed class STAThreadPoolTest {
 
         var exception = Assert.Throws<ArgumentOutOfRangeException>(() => pool.TryWorkDelay = value);
 
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope()) {
             Assert.That(exception.ParamName, Is.EqualTo(nameof(STAThreadPool.TryWorkDelay)));
             Assert.That(pool.TryWorkDelay, Is.EqualTo(existingValue));
-        });
+        }
     }
 
     [TestCase(1)]
@@ -64,14 +132,14 @@ internal sealed class STAThreadPoolTest {
     [TestCase(-1)]
     public void WorkerCountMax_rejects_non_positive_values_without_changing_the_existing_value(int value) {
         var pool = new STAThreadPool("validation");
-        const int existingValue = 16;
+        var existingValue = Environment.ProcessorCount;
 
         var exception = Assert.Throws<ArgumentOutOfRangeException>(() => pool.WorkerCountMax = value);
 
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope()) {
             Assert.That(exception.ParamName, Is.EqualTo(nameof(STAThreadPool.WorkerCountMax)));
             Assert.That(pool.WorkerCountMax, Is.EqualTo(existingValue));
-        });
+        }
     }
 
     [TestCase(1)]
@@ -102,15 +170,15 @@ internal sealed class STAThreadPoolTest {
 
         var exception = Assert.Throws<ArgumentOutOfRangeException>(() => pool.WorkerCountMin = value);
 
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope()) {
             Assert.That(exception.ParamName, Is.EqualTo(nameof(STAThreadPool.WorkerCountMin)));
             Assert.That(pool.WorkerCountMin, Is.EqualTo(existingValue));
-        });
+        }
     }
 
     [Test]
     public async Task Empty_exits_a_worker_thread_whose_context_is_still_starting() {
-        var pool = new STAThreadPool("empty-starting");
+        ISTAThreadPool pool = new STAThreadPool("empty-starting");
         var thread = default(Thread);
 
         var work = pool.Work("starting", () => thread = Thread.CurrentThread, CancellationToken.None);
@@ -122,7 +190,7 @@ internal sealed class STAThreadPoolTest {
 
     [Test]
     public async Task Empty_completes_work_that_is_already_running() {
-        var pool = new STAThreadPool("empty-running");
+        ISTAThreadPool pool = new STAThreadPool("empty-running");
         using var workStarted = new ManualResetEventSlim();
         using var releaseWork = new ManualResetEventSlim();
         var thread = default(Thread);
@@ -156,7 +224,7 @@ internal sealed class STAThreadPoolTest {
             Assert.That(pool.WorkerCount, Is.EqualTo(2));
         }
         finally {
-            pool.Empty();
+            ((ISTAThreadPool)pool).Empty();
         }
     }
 
@@ -173,7 +241,7 @@ internal sealed class STAThreadPoolTest {
             await Occupy(pool, 4);
             var keepWorking = Task.Run(async () => {
                 while (stop.IsCancellationRequested == false) {
-                    await pool.Work("tick", () => 0, CancellationToken.None);
+                    await ((ISTAThreadPool)pool).Work("tick", () => 0, CancellationToken.None);
                     await Task.Delay(10, CancellationToken.None);
                 }
             });
@@ -184,24 +252,25 @@ internal sealed class STAThreadPoolTest {
             await keepWorking;
         }
         finally {
-            pool.Empty();
+            ((ISTAThreadPool)pool).Empty();
         }
     }
 
     [Test]
     public void WorkerCountMax_rejects_a_value_less_than_the_current_minimum_without_changing_either_value() {
         var pool = new STAThreadPool("validation") {
+            WorkerCountMax = 4,
             WorkerCountMin = 2,
         };
         const int invalidValue = 1;
 
         var exception = Assert.Throws<ArgumentOutOfRangeException>(() => pool.WorkerCountMax = invalidValue);
 
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope()) {
             Assert.That(exception.ParamName, Is.EqualTo(nameof(STAThreadPool.WorkerCountMax)));
-            Assert.That(pool.WorkerCountMax, Is.EqualTo(16));
+            Assert.That(pool.WorkerCountMax, Is.EqualTo(4));
             Assert.That(pool.WorkerCountMin, Is.EqualTo(2));
-        });
+        }
     }
 
     [Test]
@@ -213,27 +282,27 @@ internal sealed class STAThreadPoolTest {
 
         var exception = Assert.Throws<ArgumentOutOfRangeException>(() => pool.WorkerCountMin = invalidValue);
 
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope()) {
             Assert.That(exception.ParamName, Is.EqualTo(nameof(STAThreadPool.WorkerCountMin)));
             Assert.That(pool.WorkerCountMax, Is.EqualTo(2));
             Assert.That(pool.WorkerCountMin, Is.EqualTo(1));
-        });
+        }
     }
 
     [Test]
     public async Task Work_runs_synchronous_work_on_an_sta_worker_and_returns_its_result() {
-        var pool = new STAThreadPool("synchronous");
+        ISTAThreadPool pool = new STAThreadPool("synchronous");
         try {
             var result = await pool.Work("get-thread", () => new {
                 ApartmentState = Thread.CurrentThread.GetApartmentState(),
                 ThreadName = Thread.CurrentThread.Name,
             }, CancellationToken.None);
 
-            Assert.Multiple(() => {
+            using (Assert.EnterMultipleScope()) {
                 Assert.That(result.ApartmentState, Is.EqualTo(ApartmentState.STA));
                 Assert.That(result.ThreadName, Does.StartWith("STAThreadWorker synchronous."));
                 Assert.That(pool.Name, Is.EqualTo("synchronous"));
-            });
+            }
         }
         finally {
             pool.Empty();
@@ -242,7 +311,7 @@ internal sealed class STAThreadPoolTest {
 
     [Test]
     public async Task Work_runs_asynchronous_continuations_on_the_same_sta_worker() {
-        var pool = new STAThreadPool("asynchronous");
+        ISTAThreadPool pool = new STAThreadPool("asynchronous");
         using var cancellation = new CancellationTokenSource();
         try {
             var result = await pool.Work("continue", async token => {
@@ -256,11 +325,11 @@ internal sealed class STAThreadPoolTest {
                 };
             }, cancellation.Token);
 
-            Assert.Multiple(() => {
+            using (Assert.EnterMultipleScope()) {
                 Assert.That(result.BeforeAwait, Is.EqualTo(result.AfterAwait));
                 Assert.That(result.ApartmentState, Is.EqualTo(ApartmentState.STA));
                 Assert.That(result.ReceivedToken, Is.EqualTo(cancellation.Token));
-            });
+            }
         }
         finally {
             pool.Empty();
@@ -269,7 +338,7 @@ internal sealed class STAThreadPoolTest {
 
     [Test]
     public async Task Work_reuses_an_idle_worker() {
-        var pool = new STAThreadPool("reuse");
+        ISTAThreadPool pool = new STAThreadPool("reuse");
         try {
             var firstWorker = await pool.Work("first", () =>
                 Thread.CurrentThread.ManagedThreadId, CancellationToken.None);
@@ -285,7 +354,7 @@ internal sealed class STAThreadPoolTest {
 
     [Test]
     public async Task Work_waits_for_capacity_when_all_workers_are_busy() {
-        var pool = new STAThreadPool("capacity") {
+        ISTAThreadPool pool = new STAThreadPool("capacity") {
             TryWorkDelay = 1,
             WorkerCountMax = 1,
         };
@@ -316,7 +385,7 @@ internal sealed class STAThreadPoolTest {
 
     [Test]
     public async Task Work_honors_cancellation_before_work_is_dispatched() {
-        var pool = new STAThreadPool("cancellation");
+        ISTAThreadPool pool = new STAThreadPool("cancellation");
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         var invoked = false;
@@ -328,10 +397,10 @@ internal sealed class STAThreadPoolTest {
             }, cancellation.Token);
 
             Assert.That(async () => await work, Throws.InstanceOf<OperationCanceledException>());
-            Assert.Multiple(() => {
+            using (Assert.EnterMultipleScope()) {
                 Assert.That(work.IsCanceled, Is.True);
                 Assert.That(invoked, Is.False);
-            });
+            }
         }
         finally {
             pool.Empty();
@@ -339,8 +408,25 @@ internal sealed class STAThreadPoolTest {
     }
 
     [Test]
+    public async Task Work_does_not_create_a_worker_when_the_token_is_already_cancelled() {
+        var pool = new STAThreadPool("cancelled-worker");
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        try {
+            var work = ((ISTAThreadPool)pool).Work("cancelled", () => 1, cancellation.Token);
+
+            Assert.That(async () => await work, Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(pool.WorkerCount, Is.Zero);
+        }
+        finally {
+            ((ISTAThreadPool)pool).Empty();
+        }
+    }
+
+    [Test]
     public async Task Work_propagates_exceptions_from_synchronous_and_asynchronous_callbacks() {
-        var pool = new STAThreadPool("exceptions");
+        ISTAThreadPool pool = new STAThreadPool("exceptions");
         try {
             var synchronous = pool.Work<int>("sync-fault", () => throw new InvalidOperationException("sync"), CancellationToken.None);
             var asynchronous = pool.Work<int>("async-fault", async _ => {
@@ -358,24 +444,32 @@ internal sealed class STAThreadPoolTest {
 
     [Test]
     public async Task Non_generic_work_overloads_complete_their_callbacks() {
-        var pool = new STAThreadPool("non-generic");
+        ISTAThreadPool pool = new STAThreadPool("non-generic");
         var synchronousCompleted = false;
         var asynchronousCompleted = false;
 
         try {
-            await pool.Work("sync", () => synchronousCompleted = true, CancellationToken.None);
+            await pool.Work("sync", () => {
+                synchronousCompleted = true;
+            }, CancellationToken.None);
             await pool.Work("async", async _ => {
                 await Task.Yield();
                 asynchronousCompleted = true;
             }, CancellationToken.None);
 
-            Assert.Multiple(() => {
+            using (Assert.EnterMultipleScope()) {
                 Assert.That(synchronousCompleted, Is.True);
                 Assert.That(asynchronousCompleted, Is.True);
-            });
+            }
         }
         finally {
             pool.Empty();
         }
+    }
+
+    [TestCase(nameof(ISTAThreadPool.Work))]
+    [TestCase(nameof(ISTAThreadPool.Empty))]
+    public void Pool_operations_are_not_exposed_as_public_class_methods(string name) {
+        Assert.That(typeof(STAThreadPool).GetMethods().Select(method => method.Name), Does.Not.Contain(name));
     }
 }
