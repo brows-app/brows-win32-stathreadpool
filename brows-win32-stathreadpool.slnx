@@ -4,6 +4,8 @@
     <File Path=".github/workflows/workflow.yml" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Brows.Win32.STAThreadPool.Composition.Exports.Tests/Brows.Win32.STAThreadPool.Composition.Exports.Tests.csproj" Id="66c86060-d8d2-4174-9aec-f43255f6317a" />
+    <Project Path="tests/Brows.Win32.STAThreadPool.Composition.Tests/Brows.Win32.STAThreadPool.Composition.Tests.csproj" Id="931913f3-5579-47e7-8c94-7fccb4aba2e4" />
     <Project Path="tests/Brows.Win32.STAThreadPool.Contracts.Tests/Brows.Win32.STAThreadPool.Contracts.Tests.csproj" Id="519c0dce-73f5-4989-98d7-14a27cf91c90" />
     <Project Path="tests/Brows.Win32.STAThreadPool.Tests/Brows.Win32.STAThreadPool.Tests.csproj" Id="407aceba-8747-44bd-b32d-a363fbf5d801" />
   </Folder>
@@ -24,6 +26,8 @@
   <Folder Name="/_/tests/">
     <File Path="tests/Directory.Build.props" />
   </Folder>
+  <Project Path="source/Brows.Win32.STAThreadPool.Composition.Exports/Brows.Win32.STAThreadPool.Composition.Exports.csproj" Id="75a8bb76-4104-43e1-b57b-4fac6e74f7bc" />
+  <Project Path="source/Brows.Win32.STAThreadPool.Composition/Brows.Win32.STAThreadPool.Composition.csproj" Id="cd640263-7cb1-46ec-bd1d-81c6bbb4247f" />
   <Project Path="source/Brows.Win32.STAThreadPool.Contracts/Brows.Win32.STAThreadPool.Contracts.csproj" Id="52f791b4-f5b0-4d56-9115-79e9d9b29d8f" />
   <Project Path="source/Brows.Win32.STAThreadPool/Brows.Win32.STAThreadPool.csproj" />
 </Solution>

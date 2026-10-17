@@ -1,0 +1,11 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net462;net48;net8.0-windows;net10.0-windows</TargetFrameworks>
+    <Description>The Windows factory for a reusable single-threaded apartment thread pool. The internal STAThreadPoolFactory implements the Brows.Composition.IExport factory contract from Brows.Win32.STAThreadPool.Composition and creates the Windows STAThreadPool, so it requires Windows.</Description>
+    <PackageTags>sta;thread;threadpool;apartment;composition;win32;com</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Brows.Win32.STAThreadPool.Composition\Brows.Win32.STAThreadPool.Composition.csproj" />
+    <ProjectReference Include="..\Brows.Win32.STAThreadPool\Brows.Win32.STAThreadPool.csproj" />
+  </ItemGroup>
+</Project>

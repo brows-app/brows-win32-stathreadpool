@@ -6,7 +6,8 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="Domore.Logs" Version="10.3.1" />
+    <PackageVersion Include="Brows.Composition" Version="1.1.0" />
+    <PackageVersion Include="Domore.Logs" Version="11.0.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.401" />
     <PackageVersion Include="Moq" Version="4.20.72" />

@@ -35,6 +35,26 @@ requires Windows because its STA workers use a Windows Forms message loop. On .N
 consuming project must target a Windows TFM, such as `net10.0-windows`; the Windows Desktop
 framework reference the STA message loop needs flows in from this package.
 
+Install the composition package when a pool is created through a composition import instead of a
+direct reference to the implementation:
+
+```
+dotnet add package Brows.Win32.STAThreadPool.Composition
+```
+
+The composition package contains `ISTAThreadPoolFactory`, a factory contract extending
+`Brows.Composition.IExport` whose `Create` method returns an `ISTAThreadPool`. Like the contracts,
+it is platform-neutral and has no Windows-specific runtime dependency. It is used together with the
+exports package, which provides the concrete factory the composition framework discovers:
+
+```
+dotnet add package Brows.Win32.STAThreadPool.Composition.Exports
+```
+
+The exports package contains the internal `STAThreadPoolFactory` implementation and returns the
+Windows `STAThreadPool`, so creating pools this way has the same requirements as the implementation
+package above.
+
 ## Usage
 
 Create one pool and keep it for the lifetime of the component that needs STA access. Creating a pool
@@ -126,6 +146,25 @@ new workers on the next `Work` call.
 Workers are also retired automatically: a periodic sweep removes workers that have been idle longer
 than `IdleTime`, never dropping the pool below `WorkerCountMin`. Worker threads are background
 threads, so they never keep the process alive.
+
+### Creating a pool through a factory
+
+Rather than referencing the Windows implementation directly, a program can create the pool through
+an `ISTAThreadPoolFactory` obtained from the composition framework, using the
+`Brows.Win32.STAThreadPool.Composition` package for the factory contract and the
+`Brows.Win32.STAThreadPool.Composition.Exports` package for its implementation. Creating a pool
+does not start any threads; workers are created on demand, and each call to `Create` creates a
+separate pool. The pool returned by the factory is used exactly as shown above.
+
+```csharp
+using Brows.Threading;
+
+ISTAThreadPoolFactory factory = /* obtained from the composition framework */;
+
+ISTAThreadPool pool = factory.Create("shell", new STAThreadPoolOptions {
+    WorkerCountMax = 4,
+});
+```
 
 ## Thread safety
 

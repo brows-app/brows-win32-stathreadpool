@@ -1,0 +1,8 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net462;net48;net8.0-windows;net10.0-windows</TargetFrameworks>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\source\Brows.Win32.STAThreadPool.Composition.Exports\Brows.Win32.STAThreadPool.Composition.Exports.csproj" />
+  </ItemGroup>
+</Project>
