@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Description>Composition factory contract for a reusable single-threaded apartment thread pool. The contract extends Brows.Composition.IExport and is platform-neutral; the Windows factory that creates STAThreadPool is in Brows.Win32.STAThreadPool.Composition.Exports.</Description>
+    <Description>Platform-neutral composition factory and target-based provider contracts for reusable single-threaded apartment thread pools. Both contracts extend Brows.Composition.IExport. Brows.Win32.STAThreadPool.Composition.Exports supplies the Windows factory; no provider implementation is supplied.</Description>
     <PackageTags>sta;thread;threadpool;apartment;composition</PackageTags>
   </PropertyGroup>
   <ItemGroup>

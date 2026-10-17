@@ -42,10 +42,13 @@ direct reference to the implementation:
 dotnet add package Brows.Win32.STAThreadPool.Composition
 ```
 
-The composition package contains `ISTAThreadPoolFactory`, a factory contract extending
-`Brows.Composition.IExport` whose `CreateThreadPool` method returns an `ISTAThreadPool`. Like the contracts,
-it is platform-neutral and has no Windows-specific runtime dependency. It is used together with the
-exports package, which provides the concrete factory the composition framework discovers:
+The composition package contains two contracts extending `Brows.Composition.IExport`:
+
+- `ISTAThreadPoolFactory` creates a new `ISTAThreadPool` through `CreateThreadPool`.
+- `ISTAThreadPoolProvider` resolves an `ISTAThreadPool` for a target object through `GetThreadPool`.
+
+Like the contracts package, it is platform-neutral and has no Windows-specific runtime dependency.
+The exports package provides the concrete factory the composition framework discovers:
 
 ```
 dotnet add package Brows.Win32.STAThreadPool.Composition.Exports
@@ -164,6 +167,30 @@ ISTAThreadPoolFactory factory = /* obtained from the composition framework */;
 ISTAThreadPool pool = factory.CreateThreadPool("shell", new STAThreadPoolOptions {
     WorkerCountMax = 4,
 });
+```
+
+### Getting a pool for a target
+
+`ISTAThreadPoolProvider` lets a component obtain a pool associated with a target object. Supply your
+own implementation and make it available to the composition framework; this repository supplies the
+provider contract only. `Brows.Win32.STAThreadPool.Composition.Exports` supplies a factory, but no
+provider implementation.
+
+The composition framework creates a single instance of each provider implementation for the lifetime
+of the program. The implementation decides how targets map to pools, whether pools are shared, how
+null or unsupported targets are handled, and how returned pools are retained and emptied. The
+provider's composition lifetime does not prescribe the lifetime of its pools. A provider that uses the
+concrete Windows `STAThreadPool` requires Windows, as described above.
+
+```csharp
+using Brows.Threading;
+
+ISTAThreadPoolProvider provider = /* your implementation obtained from composition */;
+ISTAThreadPool pool = provider.GetThreadPool(shellItem);
+
+var name = await pool.Work("get-name", () => {
+    return shellItem.GetDisplayName();
+}, cancellationToken);
 ```
 
 ## Thread safety

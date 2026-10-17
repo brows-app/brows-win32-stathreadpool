@@ -1,7 +1,14 @@
-﻿namespace Brows.Threading;
+﻿using Brows.Composition;
+
+namespace Brows.Threading;
 
 [TestFixture]
 internal sealed class ISTAThreadPoolProviderTest {
+    [Test]
+    public void Interface_extends_the_composition_export_interface() {
+        Assert.That(typeof(IExport).IsAssignableFrom(typeof(ISTAThreadPoolProvider)), Is.True);
+    }
+
     [Test]
     public void Interface_declares_a_get_thread_pool_method_that_accepts_a_target_and_returns_an_sta_thread_pool() {
         var method = typeof(ISTAThreadPoolProvider).GetMethod(nameof(ISTAThreadPoolProvider.GetThreadPool));
